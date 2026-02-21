@@ -90,4 +90,4 @@ Examples:
       :run   (let [inv        (invaders/load-invaders invader-paths)
                    radar-grid (radar/parse-grid radar-path)
                    matches    (detection/find-invaders radar-grid inv (:threshold options))]
-               (output/render (:format options) radar-grid inv matches)))))
+               (output/render (:format options) radar-grid matches)))))

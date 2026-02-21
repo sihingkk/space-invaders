@@ -58,43 +58,40 @@
 
 (defn- build-color-grid
   "Builds a 2D vector of [char color-or-nil] for each cell in the radar.
-   Cells covered by a match get the invader's color; others get nil."
-  [radar-grid matches invaders color-map]
-  (let [invader-by-name (into {} (map (juxt :name identity) invaders))
-        height          (count radar-grid)
-        ;; Start with a grid of [char nil] pairs
-        base-grid       (vec (for [r (range height)]
-                               (vec (for [c (range (count (get radar-grid r)))]
-                                      [(get-in radar-grid [r c]) nil]))))
-        ;; Overlay each match's cells with color
-        overlay         (fn [grid {:keys [invader row col]}]
-                          (let [pattern (:pattern (invader-by-name invader))
-                                color   (color-map invader)]
-                            (reduce
-                              (fn [g [dr dc]]
-                                (let [r (+ row dr)
-                                      c (+ col dc)]
-                                  (if (and (< -1 r height)
-                                           (< -1 c (count (get radar-grid r ""))))
-                                    (assoc-in g [r c 1] color)
-                                    g)))
-                              grid
-                              (for [dr (range (count pattern))
-                                    dc (range (count (get pattern dr "")))]
-                                [dr dc]))))]
+   Cells covered by a match get the invader's color; others get nil.
+   Uses :height and :width from each match map for overlay dimensions."
+  [radar-grid matches color-map]
+  (let [grid-h    (count radar-grid)
+        base-grid (vec (for [r (range grid-h)]
+                         (vec (for [c (range (count (get radar-grid r)))]
+                                [(get-in radar-grid [r c]) nil]))))
+        overlay   (fn [grid {:keys [invader row col height width]}]
+                    (let [color (color-map invader)]
+                      (reduce
+                        (fn [g [dr dc]]
+                          (let [r (+ row dr)
+                                c (+ col dc)]
+                            (if (and (< -1 r grid-h)
+                                     (< -1 c (count (get radar-grid r ""))))
+                              (assoc-in g [r c 1] color)
+                              g)))
+                        grid
+                        (for [dr (range height)
+                              dc (range width)]
+                          [dr dc]))))]
     (reduce overlay base-grid matches)))
 
 (defn format-color
   "Prints the radar grid with ANSI colors highlighting detected invader regions.
    Each invader type gets a distinct color. Unmatched cells print normally."
-  [radar-grid matches invaders]
+  [radar-grid matches]
   (if (empty? matches)
     ;; No matches — print plain radar
     (doseq [row radar-grid]
       (println row))
     ;; Overlay colors
     (let [color-map  (invader-color-map matches)
-          color-grid (build-color-grid radar-grid matches invaders color-map)]
+          color-grid (build-color-grid radar-grid matches color-map)]
       ;; Print legend
       (println "Legend:")
       (doseq [[inv-name color] color-map]
@@ -117,8 +114,8 @@
 (defn render
   "Renders detection results in the given format.
    format-type is one of \"table\", \"edn\", or \"color\"."
-  [format-type radar-grid invaders matches]
+  [format-type radar-grid matches]
   (case format-type
     "table" (format-table matches)
     "edn"   (format-edn matches)
-    "color" (format-color radar-grid matches invaders)))
+    "color" (format-color radar-grid matches)))

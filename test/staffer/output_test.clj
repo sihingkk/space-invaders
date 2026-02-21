@@ -47,7 +47,7 @@
 (deftest format-color-empty-test
   (testing "empty matches prints plain radar grid"
     (let [grid ["ooo" "---" "ooo"]
-          out  (with-out-str (output/format-color grid [] []))]
+          out        (with-out-str (output/format-color grid []))]
       (is (.contains out "ooo"))
       (is (.contains out "---"))
       ;; No ANSI escape codes
@@ -55,10 +55,9 @@
 
 (deftest format-color-with-matches-test
   (testing "matches add ANSI color codes to output"
-    (let [grid     ["ooo" "---" "ooo"]
-          invaders [{:name "inv" :pattern ["oo" "oo"]}]
-          matches  [{:invader "inv" :row 0 :col 0 :score 90}]
-          out      (with-out-str (output/format-color grid matches invaders))]
+    (let [grid    ["ooo" "---" "ooo"]
+          matches [{:invader "inv" :row 0 :col 0 :score 90 :height 2 :width 2}]
+          out     (with-out-str (output/format-color grid matches))]
       ;; Should contain ANSI escape codes
       (is (.contains out "\033["))
       ;; Should contain legend
@@ -66,13 +65,13 @@
 
 (deftest render-dispatches-test
   (testing "render with 'table' format calls format-table"
-    (let [out (with-out-str (output/render "table" ["ooo"] [] []))]
+    (let [out (with-out-str (output/render "table" ["ooo"] []))]
       (is (.contains out "No invaders detected."))))
 
   (testing "render with 'edn' format calls format-edn"
-    (let [out (with-out-str (output/render "edn" ["ooo"] [] []))]
+    (let [out (with-out-str (output/render "edn" ["ooo"] []))]
       (is (= "[]\n" out))))
 
   (testing "render with 'color' format calls format-color"
-    (let [out (with-out-str (output/render "color" ["ooo"] [] []))]
+    (let [out (with-out-str (output/render "color" ["ooo"] []))]
       (is (.contains out "ooo")))))
