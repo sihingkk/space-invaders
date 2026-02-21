@@ -3,7 +3,12 @@
         :task (shell "clojure -M:test")}
   lint {:doc  "Lint with clj-kondo"
         :task (shell "clojure -M:lint")}
-  run  {:doc            "Run the app — pass flags and files as args, e.g.: bb run resources/invader_*.txt resources/radar_sample.txt"
+  run  {:doc            "Run the app: bb run [options] <invader-file>... <radar-file>
+  -f FORMAT    Output format: table (default), edn, color
+  -t NUM       Similarity threshold 0-100 (default: 80)
+  -v NUM       Minimum visibility 0-100 (default: 50)
+  -c MODE      Color mode: region (default), score, diff (requires -f color)
+  -h           Show help"
         :override-builtin true
         :task           (apply shell "clojure -M:run" *command-line-args*)}
   ci   {:doc  "Lint, then run all tests"
