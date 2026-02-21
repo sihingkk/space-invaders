@@ -12,10 +12,10 @@
   [["-f" "--format FORMAT" "Output format: table, edn, or color"
     :default "table"
     :validate [#(contains? #{"table" "edn" "color"} %) "Must be 'table', 'edn', or 'color'"]]
-   ["-t" "--threshold NUM" "Similarity threshold (0.0-1.0)"
-    :default 0.8
-    :parse-fn #(Double/parseDouble %)
-    :validate [#(<= 0.0 % 1.0) "Must be between 0.0 and 1.0"]]
+   ["-t" "--threshold NUM" "Similarity threshold 0-100 (percentage)"
+    :default 80
+    :parse-fn #(Integer/parseInt %)
+    :validate [#(<= 0 % 100) "Must be between 0 and 100"]]
    ["-h" "--help" "Show this help"]])
 
 (def usage-text
@@ -30,7 +30,7 @@ Shell globs work: bb run resources/invader_*.txt resources/radar_sample.txt
 Examples:
   bb run resources/invader_*.txt resources/radar_sample.txt
   bb run -f color resources/invader_*.txt resources/radar_sample.txt
-  bb run -f edn -t 0.75 resources/invader_*.txt resources/radar_sample.txt")
+  bb run -f edn -t 75 resources/invader_*.txt resources/radar_sample.txt")
 
 (defn- usage
   "Builds the full usage/help string."

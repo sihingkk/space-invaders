@@ -37,10 +37,10 @@
   (if (empty? matches)
     (println "No invaders detected.")
     (do
-      (println (format "%-15s %5s %5s %7s" "INVADER" "ROW" "COL" "SCORE"))
+      (println (format "%-15s %5s %5s %6s" "INVADER" "ROW" "COL" "SCORE"))
       (println (str/join (repeat 34 "-")))
       (doseq [{:keys [invader row col score]} (sort-by (juxt :row :col) matches)]
-        (println (format "%-15s %5d %5d %7.2f" invader row col (double score)))))))
+        (println (format "%-15s %5d %5d %4d%%" invader row col (int score)))))))
 
 ;; ---------------------------------------------------------------------------
 ;; EDN format

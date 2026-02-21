@@ -17,7 +17,7 @@
       (is (= ["inv1.txt" "inv2.txt"] (:invader-paths result)))
       (is (= "radar.txt" (:radar-path result)))
       (is (= "table" (get-in result [:options :format])))
-      (is (= 0.8 (get-in result [:options :threshold])))))
+      (is (= 80 (get-in result [:options :threshold])))))
 
   (testing "valid args with single invader file"
     (let [result (core/validate-args ["inv.txt" "radar.txt"])]
@@ -41,17 +41,17 @@
       (is (= :error (:action result))))))
 
 (deftest validate-args-threshold-test
-  (testing "--threshold 0.75 is accepted"
-    (let [result (core/validate-args ["-t" "0.75" "inv.txt" "radar.txt"])]
+  (testing "--threshold 75 is accepted"
+    (let [result (core/validate-args ["-t" "75" "inv.txt" "radar.txt"])]
       (is (= :run (:action result)))
-      (is (= 0.75 (get-in result [:options :threshold])))))
+      (is (= 75 (get-in result [:options :threshold])))))
 
-  (testing "--threshold out of range produces error"
-    (let [result (core/validate-args ["-t" "1.5" "inv.txt" "radar.txt"])]
+  (testing "--threshold over 100 produces error"
+    (let [result (core/validate-args ["-t" "101" "inv.txt" "radar.txt"])]
       (is (= :error (:action result)))))
 
   (testing "--threshold negative produces error"
-    (let [result (core/validate-args ["-t" "-0.1" "inv.txt" "radar.txt"])]
+    (let [result (core/validate-args ["-t" "-1" "inv.txt" "radar.txt"])]
       (is (= :error (:action result))))))
 
 (deftest validate-args-missing-test
