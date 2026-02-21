@@ -55,33 +55,77 @@
   (pprint/pprint (vec (sort-by (juxt :row :col) matches))))
 
 ;; ---------------------------------------------------------------------------
-;; Color format
+;; Color format — composable building blocks
 ;; ---------------------------------------------------------------------------
+
+(defn- make-base-grid
+  "Creates a 2D vector of [char nil] pairs from the radar grid.
+   Each cell is [character color-or-nil], initially with no color."
+  [radar-grid]
+  (vec (for [row radar-grid]
+         (vec (for [ch row]
+                [ch nil])))))
+
+(defn- on-grid?
+  "Returns true if (row, col) is within the bounds of radar-grid."
+  [radar-grid row col]
+  (and (<= 0 row (dec (count radar-grid)))
+       (<= 0 col (dec (count (get radar-grid row ""))))))
+
+(defn- overlay-match
+  "Overlays a single match onto a color grid using color-fn to determine
+   the color for each cell. color-fn is called as
+   (color-fn match pattern-row pattern-col) and should return a color
+   string or nil (nil means skip this cell).
+
+   Parameters:
+     radar-grid - original radar grid (for bounds checking)
+     color-fn   - (fn [match pattern-row pattern-col]) -> color-string | nil
+     grid       - current 2D color grid (accumulator for reduce)
+     match      - match map with :row :col :height :width (and any extra keys)"
+  [radar-grid color-fn grid {:keys [row col height width] :as match}]
+  (reduce
+    (fn [g [pattern-row pattern-col]]
+      (let [grid-row (+ row pattern-row)
+            grid-col (+ col pattern-col)]
+        (if (on-grid? radar-grid grid-row grid-col)
+          (if-let [color (color-fn match pattern-row pattern-col)]
+            (assoc-in g [grid-row grid-col 1] color)
+            g)
+          g)))
+    grid
+    (for [pattern-row (range height)
+          pattern-col (range width)]
+      [pattern-row pattern-col])))
 
 (defn- build-color-grid
   "Builds a 2D vector of [char color-or-nil] for each cell in the radar.
-   Cells covered by a match get the invader's color; others get nil.
-   Uses :height and :width from each match map for overlay dimensions."
-  [radar-grid matches color-map]
-  (let [grid-h    (count radar-grid)
-        base-grid (vec (for [r (range grid-h)]
-                         (vec (for [c (range (count (get radar-grid r)))]
-                                [(get-in radar-grid [r c]) nil]))))
-        overlay   (fn [grid {:keys [invader row col height width]}]
-                    (let [color (color-map invader)]
-                      (reduce
-                        (fn [g [dr dc]]
-                          (let [r (+ row dr)
-                                c (+ col dc)]
-                            (if (and (< -1 r grid-h)
-                                     (< -1 c (count (get radar-grid r ""))))
-                              (assoc-in g [r c 1] color)
-                              g)))
-                        grid
-                        (for [dr (range height)
-                              dc (range width)]
-                          [dr dc]))))]
-    (reduce overlay base-grid matches)))
+   Uses color-fn to determine the color for each cell of each match.
+   color-fn is called as (color-fn match pattern-row pattern-col)."
+  [radar-grid matches color-fn]
+  (reduce (partial overlay-match radar-grid color-fn)
+          (make-base-grid radar-grid)
+          matches))
+
+(defn- print-color-grid
+  "Prints a color grid (2D vector of [char color-or-nil] pairs) to stdout.
+   Colored cells are wrapped with the ANSI color and reset codes."
+  [color-grid]
+  (doseq [row color-grid]
+    (println
+      (str/join
+        (map (fn [[ch color]]
+               (if color
+                 (str color ch ansi-reset)
+                 (str ch)))
+             row)))))
+
+(defn- region-color-fn
+  "Creates a color-fn for region mode: uniform color per invader type.
+   Returns a function (fn [match pattern-row pattern-col]) -> color-string."
+  [color-map]
+  (fn [match _pattern-row _pattern-col]
+    (color-map (:invader match))))
 
 (defn format-color
   "Prints the radar grid with ANSI colors highlighting detected invader regions.
@@ -93,21 +137,15 @@
       (println row))
     ;; Overlay colors
     (let [color-map  (invader-color-map matches)
-          color-grid (build-color-grid radar-grid matches color-map)]
+          color-fn   (region-color-fn color-map)
+          color-grid (build-color-grid radar-grid matches color-fn)]
       ;; Print legend
       (println "Legend:")
       (doseq [[inv-name color] color-map]
         (println (str "  " color inv-name ansi-reset)))
       (println)
       ;; Print colored grid
-      (doseq [row color-grid]
-        (println
-          (str/join
-            (map (fn [[ch color]]
-                   (if color
-                     (str color ch ansi-reset)
-                     (str ch)))
-                 row)))))))
+      (print-color-grid color-grid))))
 
 ;; ---------------------------------------------------------------------------
 ;; Dispatcher
