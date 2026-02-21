@@ -98,3 +98,24 @@ clojure -M:lint
   cells must match the pattern.
 - **Radar row width**: Rows in the radar file may vary slightly in width. The
   scanner uses the minimum row width for safe sliding window bounds.
+
+## Potential improvements:
+
+#### Option A: Levenshtein / Edit distance
+Measures the minimum number of insertions, deletions, and substitutions to transform one string into another. This captures structural similarity — if a pattern is slightly shifted or has characters inserted/deleted, Levenshtein handles it gracefully.
+Problem: Our invaders are 2D grids, not 1D strings. Levenshtein works on sequences. You'd need to either:
+1. Flatten to 1D (loses spatial structure)
+2. Apply per-row and aggregate (misses vertical shifts)
+3. Use a 2D edit distance (much more complex, no standard library)
+Bigger problem: The detection model assumes the pattern is at a fixed grid position — the sliding window already handles displacement. Within a given window, the pattern and radar are already aligned cell-by-cell. There are no insertions or deletions to detect — only noise flips (o ↔ -). Levenshtein collapses to Hamming distance in this case (substitution-only), so it would give the same result with more computational overhead.
+
+#### Option B: Jaccard similarity
+Measures set overlap: |A ∩ B| / |A ∪ B|. Would treat the pattern and radar window as sets of character positions.
+Problem: Loses positional information. Two completely different patterns with the same count of o and - characters would score identically.
+
+#### Option C: Cosine similarity
+Treats the patterns as vectors (e.g., o=1, -=0) and computes the cosine of the angle between them.
+Problem: Similar to Jaccard — it measures overall character distribution similarity, not positional accuracy. A radar window with the right number of os in the wrong positions would score well.
+
+#### Option D: Normalized Hamming distance
+This is... exactly what we already have. score = 100 * (1 - hamming_distance / total_cells).
