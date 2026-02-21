@@ -98,6 +98,9 @@ clojure -M:lint
   cells must match the pattern.
 - **Radar row width**: Rows in the radar file may vary slightly in width. The
   scanner uses the minimum row width for safe sliding window bounds.
+- **Delivery of data**: I just enforced file structure and delivery method, for
+  real life scenario, most likely we would like to have some streaming solution
+  and a reasonable time of response.
 
 ## Potential improvements:
 
