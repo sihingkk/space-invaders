@@ -5,6 +5,11 @@ noisy radar sample grid. Given one or more invader pattern files and a radar
 scan file, it slides each pattern across the radar, scores every position by
 similarity, and reports matches above a configurable threshold.
 
+## Preview
+
+![demo](https://github.com/user-attachments/assets/94ac0671-2830-4ac6-8185-3a26c25c766c)
+
+
 ## Prerequisites
 
 - Java 11+ (JDK)
