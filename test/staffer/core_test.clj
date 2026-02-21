@@ -17,7 +17,8 @@
       (is (= ["inv1.txt" "inv2.txt"] (:invader-paths result)))
       (is (= "radar.txt" (:radar-path result)))
       (is (= "table" (get-in result [:options :format])))
-      (is (= 80 (get-in result [:options :threshold])))))
+      (is (= 80 (get-in result [:options :threshold])))
+      (is (= 50 (get-in result [:options :visibility])))))
 
   (testing "valid args with single invader file"
     (let [result (core/validate-args ["inv.txt" "radar.txt"])]
@@ -52,6 +53,20 @@
 
   (testing "--threshold negative produces error"
     (let [result (core/validate-args ["-t" "-1" "inv.txt" "radar.txt"])]
+      (is (= :error (:action result))))))
+
+(deftest validate-args-visibility-test
+  (testing "--visibility 60 is accepted"
+    (let [result (core/validate-args ["-v" "60" "inv.txt" "radar.txt"])]
+      (is (= :run (:action result)))
+      (is (= 60 (get-in result [:options :visibility])))))
+
+  (testing "--visibility over 100 produces error"
+    (let [result (core/validate-args ["-v" "101" "inv.txt" "radar.txt"])]
+      (is (= :error (:action result)))))
+
+  (testing "--visibility negative produces error"
+    (let [result (core/validate-args ["-v" "-1" "inv.txt" "radar.txt"])]
       (is (= :error (:action result))))))
 
 (deftest validate-args-missing-test

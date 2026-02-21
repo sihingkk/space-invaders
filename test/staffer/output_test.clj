@@ -12,8 +12,8 @@
 
 (deftest format-table-with-matches-test
   (testing "matches are printed as a table with headers"
-    (let [matches [{:invader "invader_a" :row 5 :col 10 :score 87}
-                   {:invader "invader_b" :row 20 :col 30 :score 92}]
+    (let [matches [{:invader "invader_a" :row 5 :col 10 :score 87 :visibility 100}
+                   {:invader "invader_b" :row 20 :col 30 :score 92 :visibility 60}]
           out     (with-out-str (output/format-table matches))
           lines   (str/split-lines out)]
       ;; Header line present
@@ -21,11 +21,14 @@
       (is (.contains (first lines) "ROW"))
       (is (.contains (first lines) "COL"))
       (is (.contains (first lines) "SCORE"))
+      (is (.contains (first lines) "VISIBILITY"))
       ;; Both matches present with percentage display
       (is (.contains out "invader_a"))
       (is (.contains out "invader_b"))
       (is (.contains out "87%"))
-      (is (.contains out "92%")))))
+      (is (.contains out "92%"))
+      (is (.contains out "100%"))
+      (is (.contains out "60%")))))
 
 (deftest format-edn-empty-test
   (testing "empty matches prints empty vector"
@@ -34,8 +37,8 @@
 
 (deftest format-edn-with-matches-test
   (testing "matches are printed as readable EDN"
-    (let [matches [{:invader "invader_a" :row 5 :col 10 :score 87}
-                   {:invader "invader_b" :row 20 :col 30 :score 92}]
+    (let [matches [{:invader "invader_a" :row 5 :col 10 :score 87 :visibility 100}
+                   {:invader "invader_b" :row 20 :col 30 :score 92 :visibility 60}]
           out     (with-out-str (output/format-edn matches))
           parsed  (edn/read-string out)]
       (is (vector? parsed))
@@ -56,7 +59,8 @@
 (deftest format-color-with-matches-test
   (testing "matches add ANSI color codes to output"
     (let [grid    ["ooo" "---" "ooo"]
-          matches [{:invader "inv" :row 0 :col 0 :score 90 :height 2 :width 2}]
+          matches [{:invader "inv" :row 0 :col 0 :score 90 :height 2 :width 2
+                    :visibility 100}]
           out     (with-out-str (output/format-color grid matches))]
       ;; Should contain ANSI escape codes
       (is (.contains out "\033["))

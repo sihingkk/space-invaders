@@ -16,6 +16,10 @@
     :default 80
     :parse-fn #(Integer/parseInt %)
     :validate [#(<= 0 % 100) "Must be between 0 and 100"]]
+   ["-v" "--visibility NUM" "Minimum visibility 0-100 (% of invader on radar)"
+    :default 50
+    :parse-fn #(Integer/parseInt %)
+    :validate [#(<= 0 % 100) "Must be between 0 and 100"]]
    ["-h" "--help" "Show this help"]])
 
 (def usage-text
@@ -30,7 +34,8 @@ Shell globs work: bb run resources/invader_*.txt resources/radar_sample.txt
 Examples:
   bb run resources/invader_*.txt resources/radar_sample.txt
   bb run -f color resources/invader_*.txt resources/radar_sample.txt
-  bb run -f edn -t 75 resources/invader_*.txt resources/radar_sample.txt")
+  bb run -f edn -t 75 resources/invader_*.txt resources/radar_sample.txt
+  bb run -v 100 resources/invader_*.txt resources/radar_sample.txt")
 
 (defn- usage
   "Builds the full usage/help string."
@@ -54,7 +59,7 @@ Examples:
      {:action :error   :message string}
      {:action :run     :invader-paths [string ...]
                         :radar-path    string
-                        :options       {:format string :threshold double}}"
+                         :options       {:format string :threshold int :visibility int}}"
   [args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
     (cond
@@ -77,7 +82,7 @@ Examples:
       {:action        :run
        :invader-paths (vec (butlast arguments))
        :radar-path    (last arguments)
-       :options       (select-keys options [:format :threshold])})))
+       :options       (select-keys options [:format :threshold :visibility])})))
 
 (defn -main
   "Application entry point."
@@ -89,5 +94,7 @@ Examples:
       :error (do (println message) (System/exit 1))
       :run   (let [inv        (invaders/load-invaders invader-paths)
                    radar-grid (radar/parse-grid radar-path)
-                   matches    (detection/find-invaders radar-grid inv (:threshold options))]
+                   matches    (detection/find-invaders radar-grid inv
+                                                       (:threshold options)
+                                                       (:visibility options))]
                (output/render (:format options) radar-grid matches)))))
