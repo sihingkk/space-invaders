@@ -73,13 +73,14 @@
         w (count (first pattern))]
     (fn [{:keys [row col window]}]
       (let [{:keys [score visibility]} (match-score pattern window)]
-        {:invader    invader-name
-         :row        (- row pad-h)
-         :col        (- col pad-w)
-         :score      score
-         :visibility visibility
-         :height     h
-         :width      w}))))
+        {:invader      invader-name
+         :row          (- row pad-h)
+         :col          (- col pad-w)
+         :score        score
+         :visibility   visibility
+         :height       h
+         :width        w
+         :cell-results (mapv matching pattern window)}))))
 
 (defn find-invaders
   "Scans radar-grid for occurrences of each invader in invaders.

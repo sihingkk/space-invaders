@@ -20,6 +20,10 @@
     :default 50
     :parse-fn #(Integer/parseInt %)
     :validate [#(<= 0 % 100) "Must be between 0 and 100"]]
+   ["-c" "--color-mode MODE" "Color mode: region, score, or diff (requires -f color)"
+    :default "region"
+    :validate [#(contains? #{"region" "score" "diff"} %)
+               "Must be 'region', 'score', or 'diff'"]]
    ["-h" "--help" "Show this help"]])
 
 (def usage-text
@@ -34,6 +38,8 @@ Shell globs work: bb run resources/invader_*.txt resources/radar_sample.txt
 Examples:
   bb run resources/invader_*.txt resources/radar_sample.txt
   bb run -f color resources/invader_*.txt resources/radar_sample.txt
+  bb run -f color -c score resources/invader_*.txt resources/radar_sample.txt
+  bb run -f color -c diff resources/invader_*.txt resources/radar_sample.txt
   bb run -f edn -t 75 resources/invader_*.txt resources/radar_sample.txt
   bb run -v 100 resources/invader_*.txt resources/radar_sample.txt")
 
@@ -78,11 +84,17 @@ Examples:
                    ""
                    (usage summary)])}
 
+      (and (not= "region" (:color-mode options))
+           (not= "color" (:format options)))
+      {:action :error
+       :message (error-msg ["--color-mode requires -f color"])}
+
       :else
       {:action        :run
        :invader-paths (vec (butlast arguments))
        :radar-path    (last arguments)
-       :options       (select-keys options [:format :threshold :visibility])})))
+       :options       (select-keys options
+                                   [:format :threshold :visibility :color-mode])})))
 
 (defn -main
   "Application entry point."
@@ -97,4 +109,5 @@ Examples:
                    matches    (detection/find-invaders radar-grid inv
                                                        (:threshold options)
                                                        (:visibility options))]
-               (output/render (:format options) radar-grid matches)))))
+               (output/render (:format options) radar-grid matches
+                              :color-mode (:color-mode options))))))

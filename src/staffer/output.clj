@@ -17,7 +17,10 @@
    "\033[35m"    ; magenta
    "\033[34m"])  ; blue
 
-(def ^:private ansi-reset "\033[0m")
+(def ^:private ansi-reset  "\033[0m")
+(def ^:private ansi-red    "\033[31m")
+(def ^:private ansi-green  "\033[32m")
+(def ^:private ansi-yellow "\033[33m")
 
 (defn- invader-color-map
   "Assigns each unique invader name a distinct ANSI color code.
@@ -127,24 +130,55 @@
   (fn [match _pattern-row _pattern-col]
     (color-map (:invader match))))
 
+(defn- score-color-fn
+  "Creates a color-fn for score mode: uniform color per match based on score.
+   Green for 90+, yellow for 80-89, red for below 80."
+  []
+  (fn [{:keys [score]} _pattern-row _pattern-col]
+    (cond
+      (>= score 90) ansi-green
+      (>= score 80) ansi-yellow
+      :else          ansi-red)))
+
+(defn- diff-color-fn
+  "Creates a color-fn for diff mode: per-cell green (match) or red (mismatch).
+   Uses pre-computed :cell-results on each match map."
+  []
+  (fn [{:keys [cell-results]} pattern-row pattern-col]
+    (case (get-in cell-results [pattern-row pattern-col])
+      :match    ansi-green
+      :mismatch ansi-red
+      nil)))
+
+(defn- print-legend
+  "Prints the legend for the given color mode."
+  [color-mode matches]
+  (println "Legend:")
+  (case color-mode
+    "region" (doseq [[inv-name color] (invader-color-map matches)]
+               (println (str "  " color inv-name ansi-reset)))
+    "score"  (do (println (str "  " ansi-green "90%+ match" ansi-reset))
+                 (println (str "  " ansi-yellow "80-89% match" ansi-reset))
+                 (println (str "  " ansi-red "below 80% match" ansi-reset)))
+    "diff"   (do (println (str "  " ansi-green "match" ansi-reset))
+                 (println (str "  " ansi-red "mismatch" ansi-reset))))
+  (println))
+
 (defn format-color
   "Prints the radar grid with ANSI colors highlighting detected invader regions.
-   Each invader type gets a distinct color. Unmatched cells print normally."
-  [radar-grid matches]
+   color-mode is one of \"region\", \"score\", or \"diff\"."
+  [radar-grid matches color-mode]
   (if (empty? matches)
     ;; No matches — print plain radar
     (doseq [row radar-grid]
       (println row))
     ;; Overlay colors
-    (let [color-map  (invader-color-map matches)
-          color-fn   (region-color-fn color-map)
+    (let [color-fn   (case color-mode
+                       "region" (region-color-fn (invader-color-map matches))
+                       "score"  (score-color-fn)
+                       "diff"   (diff-color-fn))
           color-grid (build-color-grid radar-grid matches color-fn)]
-      ;; Print legend
-      (println "Legend:")
-      (doseq [[inv-name color] color-map]
-        (println (str "  " color inv-name ansi-reset)))
-      (println)
-      ;; Print colored grid
+      (print-legend color-mode matches)
       (print-color-grid color-grid))))
 
 ;; ---------------------------------------------------------------------------
@@ -153,9 +187,11 @@
 
 (defn render
   "Renders detection results in the given format.
-   format-type is one of \"table\", \"edn\", or \"color\"."
-  [format-type radar-grid matches]
+   format-type is one of \"table\", \"edn\", or \"color\".
+   color-mode (keyword arg) is one of \"region\", \"score\", or \"diff\"
+   and only applies when format-type is \"color\"."
+  [format-type radar-grid matches & {:keys [color-mode] :or {color-mode "region"}}]
   (case format-type
     "table" (format-table matches)
     "edn"   (format-edn matches)
-    "color" (format-color radar-grid matches)))
+    "color" (format-color radar-grid matches color-mode)))

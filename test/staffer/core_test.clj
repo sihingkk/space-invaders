@@ -69,6 +69,31 @@
     (let [result (core/validate-args ["-v" "-1" "inv.txt" "radar.txt"])]
       (is (= :error (:action result))))))
 
+(deftest validate-args-color-mode-test
+  (testing "--color-mode region is default"
+    (let [result (core/validate-args ["inv.txt" "radar.txt"])]
+      (is (= :run (:action result)))
+      (is (= "region" (get-in result [:options :color-mode])))))
+
+  (testing "--color-mode score with -f color is accepted"
+    (let [result (core/validate-args ["-f" "color" "-c" "score" "inv.txt" "radar.txt"])]
+      (is (= :run (:action result)))
+      (is (= "score" (get-in result [:options :color-mode])))))
+
+  (testing "--color-mode diff with -f color is accepted"
+    (let [result (core/validate-args ["-f" "color" "-c" "diff" "inv.txt" "radar.txt"])]
+      (is (= :run (:action result)))
+      (is (= "diff" (get-in result [:options :color-mode])))))
+
+  (testing "--color-mode without -f color produces error"
+    (let [result (core/validate-args ["-c" "score" "inv.txt" "radar.txt"])]
+      (is (= :error (:action result)))
+      (is (.contains (:message result) "--color-mode requires -f color"))))
+
+  (testing "--color-mode invalid value produces error"
+    (let [result (core/validate-args ["-f" "color" "-c" "neon" "inv.txt" "radar.txt"])]
+      (is (= :error (:action result))))))
+
 (deftest validate-args-missing-test
   (testing "no arguments produces error"
     (let [result (core/validate-args [])]

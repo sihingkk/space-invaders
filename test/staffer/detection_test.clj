@@ -251,3 +251,36 @@
           invaders [{:name "block" :pattern pattern}]
           matches  (detection/find-invaders radar invaders 100 100)]
       (is (every? #(= 100 (:visibility %)) matches)))))
+
+;; ---------------------------------------------------------------------------
+;; cell-results in match maps
+;; ---------------------------------------------------------------------------
+
+(deftest find-invaders-cell-results-test
+  (testing "match map includes :cell-results with per-cell comparison"
+    (let [pattern  ["oo" "oo"]
+          radar    ["oo" "oo"]
+          invaders [{:name "block" :pattern pattern}]
+          matches  (detection/find-invaders radar invaders 100 100)
+          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+      (is (some? m))
+      (is (= [[:match :match] [:match :match]] (:cell-results m)))))
+
+  (testing "cell-results shows mismatches"
+    (let [pattern  ["oo" "oo"]
+          radar    ["o-" "oo"]
+          invaders [{:name "block" :pattern pattern}]
+          matches  (detection/find-invaders radar invaders 50 100)
+          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+      (is (some? m))
+      (is (= [[:match :mismatch] [:match :match]] (:cell-results m)))))
+
+  (testing "cell-results shows padding for edge matches"
+    (let [pattern  ["oo" "oo"]
+          radar    ["o" "o"]
+          invaders [{:name "block" :pattern pattern}]
+          matches  (detection/find-invaders radar invaders 100 50)
+          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+      (is (some? m))
+      ;; Right column is padding since it's off-grid
+      (is (= [[:match :padding] [:match :padding]] (:cell-results m))))))
