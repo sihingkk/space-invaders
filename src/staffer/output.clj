@@ -8,19 +8,17 @@
 ;; ANSI color helpers
 ;; ---------------------------------------------------------------------------
 
+(def ^:private ansi-reset   "\033[0m")
+(def ^:private ansi-red     "\033[31m")
+(def ^:private ansi-green   "\033[32m")
+(def ^:private ansi-yellow  "\033[33m")
+(def ^:private ansi-blue    "\033[34m")
+(def ^:private ansi-magenta "\033[35m")
+(def ^:private ansi-cyan    "\033[36m")
+
 (def ^:private ansi-colors
   "Distinct ANSI color codes for different invader types."
-  ["\033[31m"    ; red
-   "\033[32m"    ; green
-   "\033[33m"    ; yellow
-   "\033[36m"    ; cyan
-   "\033[35m"    ; magenta
-   "\033[34m"])  ; blue
-
-(def ^:private ansi-reset  "\033[0m")
-(def ^:private ansi-red    "\033[31m")
-(def ^:private ansi-green  "\033[32m")
-(def ^:private ansi-yellow "\033[33m")
+  [ansi-red ansi-green ansi-yellow ansi-cyan ansi-magenta ansi-blue])
 
 (defn- invader-color-map
   "Assigns each unique invader name a distinct ANSI color code.
@@ -132,25 +130,22 @@
   (fn [match _pattern-row _pattern-col]
     (color-map (:invader match))))
 
-(defn- score-color-fn
-  "Creates a color-fn for score mode: uniform color per match based on score.
-   Green for 90+, yellow for 80-89, red for below 80."
-  []
-  (fn [{:keys [score]} _pattern-row _pattern-col]
-    (cond
-      (>= score 90) ansi-green
-      (>= score 80) ansi-yellow
-      :else          ansi-red)))
+(defn- score-color
+  "Color for score mode: green for 90+, yellow for 80-89, red below 80."
+  [{:keys [score]} _pattern-row _pattern-col]
+  (cond
+    (>= score 90) ansi-green
+    (>= score 80) ansi-yellow
+    :else          ansi-red))
 
-(defn- diff-color-fn
-  "Creates a color-fn for diff mode: per-cell green (match) or red (mismatch).
+(defn- diff-color
+  "Color for diff mode: per-cell green (match) or red (mismatch).
    Uses pre-computed :cell-results on each match map."
-  []
-  (fn [{:keys [cell-results]} pattern-row pattern-col]
-    (case (get-in cell-results [pattern-row pattern-col])
-      :match    ansi-green
-      :mismatch ansi-red
-      nil)))
+  [{:keys [cell-results]} pattern-row pattern-col]
+  (case (get-in cell-results [pattern-row pattern-col])
+    :match    ansi-green
+    :mismatch ansi-red
+    nil))
 
 (defn- print-legend
   "Prints the legend for the given color mode."
@@ -177,8 +172,8 @@
     ;; Overlay colors
     (let [color-fn   (case color-mode
                        "region" (region-color-fn (invader-color-map matches))
-                       "score"  (score-color-fn)
-                       "diff"   (diff-color-fn))
+                       "score"  score-color
+                       "diff"   diff-color)
           color-grid (build-color-grid radar-grid matches color-fn)]
       (print-legend color-mode matches)
       (print-color-grid color-grid))))

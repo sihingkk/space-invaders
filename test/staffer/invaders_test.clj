@@ -1,15 +1,8 @@
 (ns staffer.invaders-test
   (:require
     [clojure.test :refer [deftest is testing]]
-    [staffer.invaders :as invaders]))
-
-(defn- write-temp-file!
-  "Writes `content` to a temp file with the given `name` and returns its path."
-  [name content]
-  (let [f (java.io.File/createTempFile name ".txt")]
-    (.deleteOnExit f)
-    (spit f content)
-    (.getAbsolutePath f)))
+    [staffer.invaders :as invaders]
+    [staffer.test-util :refer [write-temp-file!]]))
 
 (deftest load-invader-test
   (testing "loads pattern and derives name from filename"
@@ -29,6 +22,12 @@
       (is (= 2 (count invs)))
       (is (= ["ooo" "---"] (:pattern (first invs))))
       (is (= ["---" "ooo"] (:pattern (second invs)))))))
+
+(deftest load-invader-empty-pattern-test
+  (testing "throws ex-info for empty pattern file"
+    (let [path (write-temp-file! "empty_inv" "\n\n")]
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Empty invader pattern"
+            (invaders/load-invader path))))))
 
 (deftest load-invader-from-resource-test
   (testing "loads the actual invader_a resource file"

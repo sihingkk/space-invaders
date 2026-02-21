@@ -1,5 +1,6 @@
 (ns staffer.core-test
   (:require
+    [clojure.string :as str]
     [clojure.test :refer [deftest is testing]]
     [staffer.core :as core]))
 
@@ -8,7 +9,7 @@
     (let [result (core/validate-args ["--help"])]
       (is (= :help (:action result)))
       (is (string? (:message result)))
-      (is (.contains (:message result) "Options:")))))
+      (is (str/includes? (:message result) "Options:")))))
 
 (deftest validate-args-valid-test
   (testing "valid args with two invader files and one radar file"
@@ -88,7 +89,7 @@
   (testing "--color-mode without -f color produces error"
     (let [result (core/validate-args ["-c" "score" "inv.txt" "radar.txt"])]
       (is (= :error (:action result)))
-      (is (.contains (:message result) "--color-mode requires -f color"))))
+      (is (str/includes? (:message result) "--color-mode requires -f color"))))
 
   (testing "--color-mode invalid value produces error"
     (let [result (core/validate-args ["-f" "color" "-c" "neon" "inv.txt" "radar.txt"])]

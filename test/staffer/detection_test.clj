@@ -3,6 +3,11 @@
     [clojure.test :refer [deftest is testing]]
     [staffer.detection :as detection]))
 
+(defn- match-at
+  "Finds the first match at the given (row, col) position."
+  [matches row col]
+  (first (filter #(and (= row (:row %)) (= col (:col %))) matches)))
+
 ;; ---------------------------------------------------------------------------
 ;; matching
 ;; ---------------------------------------------------------------------------
@@ -29,17 +34,22 @@
 ;; match-score
 ;; ---------------------------------------------------------------------------
 
+(defn- cells
+  "Helper: computes cell-results from pattern and window, flattened for match-score."
+  [pattern window]
+  (flatten (mapv detection/matching pattern window)))
+
 (deftest match-score-perfect-match-test
   (testing "identical pattern and window"
     (is (= {:score 100 :visibility 100}
-           (detection/match-score ["ooo" "o-o" "ooo"]
-                                  ["ooo" "o-o" "ooo"])))))
+           (detection/match-score
+             (cells ["ooo" "o-o" "ooo"] ["ooo" "o-o" "ooo"]))))))
 
 (deftest match-score-zero-match-test
   (testing "completely opposite"
     (is (= {:score 0 :visibility 100}
-           (detection/match-score ["ooo" "ooo"]
-                                  ["---" "---"])))))
+           (detection/match-score
+             (cells ["ooo" "ooo"] ["---" "---"]))))))
 
 (deftest match-score-partial-80-percent-test
   (testing "80 out of 100 cells matching"
@@ -47,19 +57,13 @@
           window  (vec (concat (repeat 8 "oooooooooo")
                                (repeat 2 "----------")))]
       (is (= {:score 80 :visibility 100}
-             (detection/match-score pattern window)))))
-
-  (testing "score 80 passes threshold 80"
-    (is (>= 80 80)))
-
-  (testing "score 80 does not pass threshold 81"
-    (is (not (>= 80 81)))))
+             (detection/match-score (cells pattern window)))))))
 
 (deftest match-score-half-match-test
   (testing "half matching cells"
     (is (= {:score 50 :visibility 100}
-           (detection/match-score ["oooo" "oooo"]
-                                  ["oo--" "oo--"])))))
+           (detection/match-score
+             (cells ["oooo" "oooo"] ["oo--" "oo--"]))))))
 
 (deftest match-score-with-padding-test
   (testing "padding reduces visibility but score only counts visible cells"
@@ -67,26 +71,26 @@
     ;; "ooo" vs "ooo" → 3 visible matches
     ;; total=6, visible=4, hits=4 → score=100, visibility=67
     (is (= {:score 100 :visibility 67}
-           (detection/match-score ["ooo" "ooo"]
-                                  ["o__" "ooo"]))))
+           (detection/match-score
+             (cells ["ooo" "ooo"] ["o__" "ooo"])))))
 
   (testing "all padding gives score 0, visibility 0"
     (is (= {:score 0 :visibility 0}
-           (detection/match-score ["oo" "oo"]
-                                  ["__" "__"])))))
+           (detection/match-score
+             (cells ["oo" "oo"] ["__" "__"]))))))
 
 (deftest match-score-single-cell-test
   (testing "single cell match"
     (is (= {:score 100 :visibility 100}
-           (detection/match-score ["o"] ["o"]))))
+           (detection/match-score (cells ["o"] ["o"])))))
 
   (testing "single cell mismatch"
     (is (= {:score 0 :visibility 100}
-           (detection/match-score ["o"] ["-"]))))
+           (detection/match-score (cells ["o"] ["-"])))))
 
   (testing "single cell padding"
     (is (= {:score 0 :visibility 0}
-           (detection/match-score ["o"] ["_"])))))
+           (detection/match-score (cells ["o"] ["_"]))))))
 
 ;; ---------------------------------------------------------------------------
 ;; pad-grid
@@ -179,18 +183,17 @@
           radar    ["o-" "oo"]
           invaders [{:name "block" :pattern pattern}]
           matches  (detection/find-invaders radar invaders 100 100)]
-      (is (empty? (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches)))))
+      (is (nil? (match-at matches 0 0)))))
 
   (testing "lower threshold allows partial matches"
     (let [pattern  ["oo" "oo"]
           radar    ["o-" "oo"]
           invaders [{:name "block" :pattern pattern}]
-          matches  (detection/find-invaders radar invaders 75 100)]
-      (is (some #(and (= 0 (:row %))
-                      (= 0 (:col %))
-                      (= 75 (:score %))
-                      (= 100 (:visibility %)))
-                matches)))))
+          matches  (detection/find-invaders radar invaders 75 100)
+          m        (match-at matches 0 0)]
+      (is (some? m))
+      (is (= 75 (:score m)))
+      (is (= 100 (:visibility m))))))
 
 (deftest find-invaders-edge-detection-test
   (testing "detects invader partially off the right edge"
@@ -198,12 +201,11 @@
           radar    ["o" "o"]
           invaders [{:name "block" :pattern pattern}]
           ;; With min-visibility 50, the half-visible match should appear
-          matches  (detection/find-invaders radar invaders 100 50)]
-      (is (some #(and (= 0 (:row %))
-                      (= 0 (:col %))
-                      (= 100 (:score %))
-                      (= 50 (:visibility %)))
-                matches))))
+          matches  (detection/find-invaders radar invaders 100 50)
+          m        (match-at matches 0 0)]
+      (is (some? m))
+      (is (= 100 (:score m)))
+      (is (= 50 (:visibility m)))))
 
   (testing "edge match filtered when visibility too high"
     (let [pattern  ["oo" "oo"]
@@ -219,12 +221,11 @@
           radar    ["o"]
           invaders [{:name "block" :pattern pattern}]
           ;; 1x1 radar, 2x2 pattern: best case is 1 cell visible = 25%
-          matches  (detection/find-invaders radar invaders 100 25)]
-      (is (some #(and (= 0 (:row %))
-                      (= 0 (:col %))
-                      (= 100 (:score %))
-                      (= 25 (:visibility %)))
-                matches)))))
+          matches  (detection/find-invaders radar invaders 100 25)
+          m        (match-at matches 0 0)]
+      (is (some? m))
+      (is (= 100 (:score m)))
+      (is (= 25 (:visibility m))))))
 
 (deftest find-invaders-multiple-invaders-test
   (testing "detects two different invaders in the same radar"
@@ -262,7 +263,7 @@
           radar    ["oo" "oo"]
           invaders [{:name "block" :pattern pattern}]
           matches  (detection/find-invaders radar invaders 100 100)
-          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+          m        (match-at matches 0 0)]
       (is (some? m))
       (is (= [[:match :match] [:match :match]] (:cell-results m)))))
 
@@ -271,7 +272,7 @@
           radar    ["o-" "oo"]
           invaders [{:name "block" :pattern pattern}]
           matches  (detection/find-invaders radar invaders 50 100)
-          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+          m        (match-at matches 0 0)]
       (is (some? m))
       (is (= [[:match :mismatch] [:match :match]] (:cell-results m)))))
 
@@ -280,7 +281,7 @@
           radar    ["o" "o"]
           invaders [{:name "block" :pattern pattern}]
           matches  (detection/find-invaders radar invaders 100 50)
-          m        (first (filter #(and (= 0 (:row %)) (= 0 (:col %))) matches))]
+          m        (match-at matches 0 0)]
       (is (some? m))
       ;; Right column is padding since it's off-grid
       (is (= [[:match :padding] [:match :padding]] (:cell-results m))))))

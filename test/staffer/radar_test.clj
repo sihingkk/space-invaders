@@ -1,15 +1,8 @@
 (ns staffer.radar-test
   (:require
     [clojure.test :refer [deftest is testing]]
-    [staffer.radar :as radar]))
-
-(defn- write-temp-file!
-  "Writes `content` to a temp file and returns its path."
-  [content]
-  (let [f (java.io.File/createTempFile "radar-test" ".txt")]
-    (.deleteOnExit f)
-    (spit f content)
-    (.getAbsolutePath f)))
+    [staffer.radar :as radar]
+    [staffer.test-util :refer [write-temp-file!]]))
 
 (deftest parse-grid-basic
   (testing "parses a simple multi-line grid"
@@ -27,16 +20,7 @@
           grid (radar/parse-grid path)]
       (is (= ["o-o-o"] grid)))))
 
-(deftest grid-height-test
-  (testing "returns row count"
-    (is (= 3 (radar/grid-height ["ooo" "---" "ooo"]))))
-
-  (testing "returns 0 for empty grid"
-    (is (= 0 (radar/grid-height [])))))
-
-(deftest grid-width-test
-  (testing "returns width of widest row"
-    (is (= 5 (radar/grid-width ["ooo" "o----" "oo"]))))
-
-  (testing "returns 0 for empty grid"
-    (is (= 0 (radar/grid-width [])))))
+(deftest parse-grid-missing-file-test
+  (testing "throws ex-info for missing file"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"File not found"
+          (radar/parse-grid "nonexistent/path.txt")))))

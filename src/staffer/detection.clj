@@ -1,30 +1,38 @@
 (ns staffer.detection
   "Pattern matching / detection logic for finding invaders in a radar grid.")
 
+(defn- percent
+  "Computes a rounded integer percentage. Returns 0 when denominator is zero."
+  [numerator denominator]
+  (if (zero? denominator) 0
+    (Math/round (double (* 100 (/ numerator denominator))))))
+
+(defn- padding-str
+  "Returns a string of n underscore characters."
+  [n]
+  (apply str (repeat n \_)))
+
 (defn matching
   "Compares two strings character by character.
    Returns a vector of :match, :mismatch, or :padding (when radar char is \\_)."
-  [s1 s2]
+  [pattern-row radar-row]
   (mapv (fn [a b]
           (cond
             (= \_ b) :padding
             (= a b)  :match
             :else    :mismatch))
-        s1 s2))
+        pattern-row radar-row))
 
 (defn match-score
-  "Compares an invader pattern against a radar window of the same dimensions.
-   Ignores padding cells. Returns {:score 0-100 :visibility 0-100}."
-  [pattern window]
-  (let [results   (mapcat matching pattern window)
-        visible   (remove #{:padding} results)
-        total     (count results)
+  "Computes score and visibility from a flat seq of cell comparison results
+   (:match, :mismatch, :padding). Returns {:score 0-100 :visibility 0-100}."
+  [cell-results]
+  (let [visible   (remove #{:padding} cell-results)
+        total     (count cell-results)
         vis-count (count visible)
         hits      (count (filter #{:match} visible))]
-    {:score      (if (zero? vis-count) 0
-                   (Math/round (double (* 100 (/ hits vis-count)))))
-     :visibility (if (zero? total) 0
-                   (Math/round (double (* 100 (/ vis-count total)))))}))
+    {:score      (percent hits vis-count)
+     :visibility (percent vis-count total)}))
 
 (defn pad-grid
   "Pads radar-grid with \\_ characters. Adds pad-h rows top/bottom
@@ -34,15 +42,14 @@
     radar-grid
     (let [grid-w    (apply max (map count radar-grid))
           padded-w  (+ grid-w (* 2 pad-w))
-          blank-row (apply str (repeat padded-w \_))
-          pad-left  (apply str (repeat pad-w \_))
-          pad-right (fn [row]
-                      (apply str (repeat (+ pad-w (- grid-w (count row))) \_)))
-          pad-row   (fn [row] (str pad-left row (pad-right row)))]
+          blank-row (padding-str padded-w)
+          pad-left  (padding-str pad-w)
+          pad-row   (fn [row]
+                      (str pad-left row (padding-str (+ pad-w (- grid-w (count row))))))]
       (vec
         (concat
           (repeat pad-h blank-row)
-          (mapv pad-row radar-grid)
+          (map pad-row radar-grid)
           (repeat pad-h blank-row))))))
 
 (defn extract-window
@@ -57,6 +64,7 @@
    where a pattern of height x width fits fully inside radar-grid."
   [radar-grid height width]
   (let [grid-h (count radar-grid)
+        ;; Use min width to ensure extract-window stays in bounds for ragged grids
         grid-w (apply min (map count radar-grid))]
     (for [r (range (inc (- grid-h height)))
           c (range (inc (- grid-w width)))]
@@ -64,23 +72,20 @@
        :col    c
        :window (extract-window radar-grid r c height width)})))
 
-(defn- detect-invader
-  "Returns a function that scores a window against the given invader pattern.
-   The returned fn takes a window map {:row :col :window} and returns
-   a match map with score, visibility, and adjusted coordinates."
-  [pattern invader-name pad-h pad-w]
-  (let [h (count pattern)
-        w (count (first pattern))]
-    (fn [{:keys [row col window]}]
-      (let [{:keys [score visibility]} (match-score pattern window)]
-        {:invader      invader-name
-         :row          (- row pad-h)
-         :col          (- col pad-w)
-         :score        score
-         :visibility   visibility
-         :height       h
-         :width        w
-         :cell-results (mapv matching pattern window)}))))
+(defn- score-window
+  "Scores a window against an invader pattern, adjusting coordinates for padding.
+   Computes cell-results once and derives score/visibility from them."
+  [pattern invader-name pad-h pad-w {:keys [row col window]}]
+  (let [cell-results (mapv matching pattern window)
+        {:keys [score visibility]} (match-score (flatten cell-results))]
+    {:invader      invader-name
+     :row          (- row pad-h)
+     :col          (- col pad-w)
+     :score        score
+     :visibility   visibility
+     :height       (count pattern)
+     :width        (count (first pattern))
+     :cell-results cell-results}))
 
 (defn find-invaders
   "Scans radar-grid for occurrences of each invader in invaders.
@@ -95,16 +100,17 @@
      min-visibility - integer 0-100, minimum % of invader on radar
 
    Returns a vector of match maps, each:
-     {:invader    string  - invader name
-      :row        int     - top-left row in original radar (can be negative)
-      :col        int     - top-left col in original radar (can be negative)
-      :score      int     - match quality on visible cells (100 = perfect)
-      :visibility int     - percentage of invader cells on radar
-      :height     int     - invader pattern height
-      :width      int     - invader pattern width}"
+     {:invader      string  - invader name
+      :row          int     - top-left row in original radar (can be negative)
+      :col          int     - top-left col in original radar (can be negative)
+      :score        int     - match quality on visible cells (100 = perfect)
+      :visibility   int     - percentage of invader cells on radar
+      :height       int     - invader pattern height
+      :width        int     - invader pattern width
+      :cell-results vector  - 2D vector of :match/:mismatch/:padding per cell}"
   [radar-grid invaders threshold min-visibility]
-  (let [max-h  (apply max (map (comp count :pattern) invaders))
-        max-w  (apply max (map (comp count first :pattern) invaders))
+  (let [max-h  (apply max (map #(count (:pattern %)) invaders))
+        max-w  (apply max (map #(count (first (:pattern %))) invaders))
         pad-h  (dec max-h)
         pad-w  (dec max-w)
         padded (pad-grid radar-grid pad-h pad-w)]
@@ -112,7 +118,7 @@
       (mapcat
         (fn [{:keys [name pattern]}]
           (->> (sliding-windows padded (count pattern) (count (first pattern)))
-               (map (detect-invader pattern name pad-h pad-w))
+               (map #(score-window pattern name pad-h pad-w %))
                (filter #(and (>= (:visibility %) min-visibility)
                              (>= (:score %) threshold)))))
         invaders))))

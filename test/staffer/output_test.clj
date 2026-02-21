@@ -8,7 +8,7 @@
 (deftest format-table-empty-test
   (testing "empty matches prints no-invaders message"
     (let [out (with-out-str (output/format-table []))]
-      (is (.contains out "No invaders detected.")))))
+      (is (str/includes? out "No invaders detected.")))))
 
 (deftest format-table-with-matches-test
   (testing "matches are printed as a table with headers"
@@ -17,18 +17,18 @@
           out     (with-out-str (output/format-table matches))
           lines   (str/split-lines out)]
       ;; Header line present
-      (is (.contains (first lines) "INVADER"))
-      (is (.contains (first lines) "ROW"))
-      (is (.contains (first lines) "COL"))
-      (is (.contains (first lines) "SCORE"))
-      (is (.contains (first lines) "VISIBILITY"))
+      (is (str/includes? (first lines) "INVADER"))
+      (is (str/includes? (first lines) "ROW"))
+      (is (str/includes? (first lines) "COL"))
+      (is (str/includes? (first lines) "SCORE"))
+      (is (str/includes? (first lines) "VISIBILITY"))
       ;; Both matches present with percentage display
-      (is (.contains out "invader_a"))
-      (is (.contains out "invader_b"))
-      (is (.contains out "87%"))
-      (is (.contains out "92%"))
-      (is (.contains out "100%"))
-      (is (.contains out "60%")))))
+      (is (str/includes? out "invader_a"))
+      (is (str/includes? out "invader_b"))
+      (is (str/includes? out "87%"))
+      (is (str/includes? out "92%"))
+      (is (str/includes? out "100%"))
+      (is (str/includes? out "60%")))))
 
 (deftest format-edn-empty-test
   (testing "empty matches prints empty vector"
@@ -59,10 +59,10 @@
   (testing "empty matches prints plain radar grid"
     (let [grid ["ooo" "---" "ooo"]
           out  (with-out-str (output/format-color grid [] "region"))]
-      (is (.contains out "ooo"))
-      (is (.contains out "---"))
+      (is (str/includes? out "ooo"))
+      (is (str/includes? out "---"))
       ;; No ANSI escape codes
-      (is (not (.contains out "\033["))))))
+      (is (not (str/includes? out "\033["))))))
 
 (deftest format-color-with-matches-test
   (testing "matches add ANSI color codes to output (region mode)"
@@ -72,38 +72,25 @@
                     :cell-results [[:match :match] [:mismatch :mismatch]]}]
           out     (with-out-str (output/format-color grid matches "region"))]
       ;; Should contain ANSI escape codes
-      (is (.contains out "\033["))
+      (is (str/includes? out "\033["))
       ;; Should contain legend with invader name
-      (is (.contains out "Legend:"))
-      (is (.contains out "inv")))))
+      (is (str/includes? out "Legend:"))
+      (is (str/includes? out "inv")))))
 
 (deftest format-color-score-mode-test
-  (testing "score mode uses green for 90+ score"
-    (let [grid    ["ooo" "ooo"]
-          matches [{:invader "inv" :row 0 :col 0 :score 95 :height 2 :width 2
-                    :visibility 100
-                    :cell-results [[:match :match] [:match :match]]}]
-          out     (with-out-str (output/format-color grid matches "score"))]
-      (is (.contains out "\033[32m"))   ;; green
-      (is (.contains out "90%+ match"))))
-
-  (testing "score mode uses yellow for 80-89 score"
-    (let [grid    ["ooo" "ooo"]
-          matches [{:invader "inv" :row 0 :col 0 :score 85 :height 2 :width 2
-                    :visibility 100
-                    :cell-results [[:match :match] [:match :mismatch]]}]
-          out     (with-out-str (output/format-color grid matches "score"))]
-      (is (.contains out "\033[33m"))   ;; yellow
-      (is (.contains out "80-89% match"))))
-
-  (testing "score mode uses red for below 80 score"
-    (let [grid    ["ooo" "ooo"]
-          matches [{:invader "inv" :row 0 :col 0 :score 70 :height 2 :width 2
-                    :visibility 100
-                    :cell-results [[:match :mismatch] [:mismatch :mismatch]]}]
-          out     (with-out-str (output/format-color grid matches "score"))]
-      (is (.contains out "\033[31m"))   ;; red
-      (is (.contains out "below 80% match")))))
+  (let [make-match (fn [score]
+                     [{:invader "inv" :row 0 :col 0 :score score
+                       :height 2 :width 2 :visibility 100
+                       :cell-results [[:match :match] [:match :mismatch]]}])
+        grid ["ooo" "ooo"]]
+    (doseq [[score color-code label]
+            [[95 "\033[32m" "90%+ match"]
+             [85 "\033[33m" "80-89% match"]
+             [70 "\033[31m" "below 80% match"]]]
+      (testing (str "score mode uses correct color for score " score)
+        (let [out (with-out-str (output/format-color grid (make-match score) "score"))]
+          (is (str/includes? out color-code))
+          (is (str/includes? out label)))))))
 
 (deftest format-color-diff-mode-test
   (testing "diff mode shows green for match and red for mismatch"
@@ -113,11 +100,11 @@
                     :cell-results [[:match :mismatch] [:match :match]]}]
           out     (with-out-str (output/format-color grid matches "diff"))]
       ;; Should have both green (match) and red (mismatch)
-      (is (.contains out "\033[32m"))   ;; green
-      (is (.contains out "\033[31m"))   ;; red
+      (is (str/includes? out "\033[32m"))
+      (is (str/includes? out "\033[31m"))
       ;; Legend
-      (is (.contains out "match"))
-      (is (.contains out "mismatch"))))
+      (is (str/includes? out "match"))
+      (is (str/includes? out "mismatch"))))
 
   (testing "diff mode skips padding cells (no color)"
     (let [grid    ["o" "o"]
@@ -126,15 +113,14 @@
                     :cell-results [[:match :padding] [:match :padding]]}]
           out     (with-out-str (output/format-color grid matches "diff"))]
       ;; Green for the match cells
-      (is (.contains out "\033[32m"))
+      (is (str/includes? out "\033[32m"))
       ;; Only 1 char wide grid, padding cells are off-grid so no red
-      ;; The output should just be 2 lines of colored "o"
-      (is (.contains out "o")))))
+      (is (str/includes? out "o")))))
 
 (deftest render-dispatches-test
   (testing "render with 'table' format calls format-table"
     (let [out (with-out-str (output/render "table" ["ooo"] []))]
-      (is (.contains out "No invaders detected."))))
+      (is (str/includes? out "No invaders detected."))))
 
   (testing "render with 'edn' format calls format-edn"
     (let [out (with-out-str (output/render "edn" ["ooo"] []))]
@@ -142,7 +128,7 @@
 
   (testing "render with 'color' format defaults to region mode"
     (let [out (with-out-str (output/render "color" ["ooo"] []))]
-      (is (.contains out "ooo"))))
+      (is (str/includes? out "ooo"))))
 
   (testing "render with 'color' format and score color-mode"
     (let [matches [{:invader "inv" :row 0 :col 0 :score 95 :height 1 :width 1
@@ -150,8 +136,8 @@
                     :cell-results [[:match]]}]
           out     (with-out-str (output/render "color" ["o"] matches
                                                :color-mode "score"))]
-      (is (.contains out "\033[32m"))
-      (is (.contains out "90%+ match"))))
+      (is (str/includes? out "\033[32m"))
+      (is (str/includes? out "90%+ match"))))
 
   (testing "render with 'color' format and diff color-mode"
     (let [matches [{:invader "inv" :row 0 :col 0 :score 100 :height 1 :width 1
@@ -159,5 +145,5 @@
                     :cell-results [[:match]]}]
           out     (with-out-str (output/render "color" ["o"] matches
                                                :color-mode "diff"))]
-      (is (.contains out "\033[32m"))
-      (is (.contains out "match")))))
+      (is (str/includes? out "\033[32m"))
+      (is (str/includes? out "match")))))

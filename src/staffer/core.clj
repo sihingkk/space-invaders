@@ -104,10 +104,10 @@ Examples:
     (case action
       :help  (do (println message) (System/exit 0))
       :error (do (println message) (System/exit 1))
-      :run   (let [inv        (invaders/load-invaders invader-paths)
+      :run   (let [{:keys [format threshold visibility color-mode]} options
+                   inv        (invaders/load-invaders invader-paths)
                    radar-grid (radar/parse-grid radar-path)
                    matches    (detection/find-invaders radar-grid inv
-                                                       (:threshold options)
-                                                       (:visibility options))]
-               (output/render (:format options) radar-grid matches
-                              :color-mode (:color-mode options))))))
+                                                       threshold visibility)]
+               (output/render format radar-grid matches
+                              :color-mode color-mode)))))
