@@ -45,7 +45,15 @@
       (is (= 2 (count parsed)))
       (is (= "invader_a" (:invader (first parsed))))
       (is (= 5 (:row (first parsed))))
-      (is (= 10 (:col (first parsed)))))))
+      (is (= 10 (:col (first parsed))))))
+
+  (testing "cell-results are excluded from EDN output"
+    (let [matches [{:invader "inv" :row 0 :col 0 :score 90 :visibility 100
+                    :height 2 :width 2
+                    :cell-results [[:match :match] [:match :match]]}]
+          out     (with-out-str (output/format-edn matches))
+          parsed  (edn/read-string out)]
+      (is (nil? (:cell-results (first parsed)))))))
 
 (deftest format-color-empty-test
   (testing "empty matches prints plain radar grid"

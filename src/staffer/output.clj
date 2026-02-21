@@ -53,9 +53,11 @@
 
 (defn format-edn
   "Prints matches as pretty-printed EDN to stdout.
-   Sorted by row, then column."
+   Sorted by row, then column. Excludes :cell-results from output."
   [matches]
-  (pprint/pprint (vec (sort-by (juxt :row :col) matches))))
+  (pprint/pprint
+    (vec (sort-by (juxt :row :col)
+                  (map #(dissoc % :cell-results) matches)))))
 
 ;; ---------------------------------------------------------------------------
 ;; Color format — composable building blocks
