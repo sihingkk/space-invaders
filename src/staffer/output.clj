@@ -1,6 +1,7 @@
 (ns staffer.output
-  "Result formatting: table output and ANSI color-coded radar display."
+  "Result formatting: table, EDN, and ANSI color-coded radar display."
   (:require
+    [clojure.pprint :as pprint]
     [clojure.string :as str]))
 
 ;; ---------------------------------------------------------------------------
@@ -40,6 +41,16 @@
       (println (str/join (repeat 34 "-")))
       (doseq [{:keys [invader row col score]} (sort-by (juxt :row :col) matches)]
         (println (format "%-15s %5d %5d %7.2f" invader row col (double score)))))))
+
+;; ---------------------------------------------------------------------------
+;; EDN format
+;; ---------------------------------------------------------------------------
+
+(defn format-edn
+  "Prints matches as pretty-printed EDN to stdout.
+   Sorted by row, then column."
+  [matches]
+  (pprint/pprint (vec (sort-by (juxt :row :col) matches))))
 
 ;; ---------------------------------------------------------------------------
 ;; Color format
@@ -105,8 +116,9 @@
 
 (defn render
   "Renders detection results in the given format.
-   format-type is one of \"table\" or \"color\"."
+   format-type is one of \"table\", \"edn\", or \"color\"."
   [format-type radar-grid invaders matches]
   (case format-type
     "table" (format-table matches)
+    "edn"   (format-edn matches)
     "color" (format-color radar-grid matches invaders)))

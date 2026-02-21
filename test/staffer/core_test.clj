@@ -31,6 +31,11 @@
       (is (= :run (:action result)))
       (is (= "color" (get-in result [:options :format])))))
 
+  (testing "--format edn is accepted"
+    (let [result (core/validate-args ["-f" "edn" "inv.txt" "radar.txt"])]
+      (is (= :run (:action result)))
+      (is (= "edn" (get-in result [:options :format])))))
+
   (testing "--format invalid produces error"
     (let [result (core/validate-args ["-f" "xml" "inv.txt" "radar.txt"])]
       (is (= :error (:action result))))))

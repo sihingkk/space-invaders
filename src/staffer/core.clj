@@ -9,9 +9,9 @@
     [staffer.radar :as radar]))
 
 (def cli-options
-  [["-f" "--format FORMAT" "Output format: table or color"
+  [["-f" "--format FORMAT" "Output format: table, edn, or color"
     :default "table"
-    :validate [#(contains? #{"table" "color"} %) "Must be 'table' or 'color'"]]
+    :validate [#(contains? #{"table" "edn" "color"} %) "Must be 'table', 'edn', or 'color'"]]
    ["-t" "--threshold NUM" "Similarity threshold (0.0-1.0)"
     :default 0.8
     :parse-fn #(Double/parseDouble %)
@@ -19,12 +19,18 @@
    ["-h" "--help" "Show this help"]])
 
 (def usage-text
-  "Usage: clojure -M:run [options] <invader-file>... <radar-file>
+  "Usage: bb run [options] <invader-file>... <radar-file>
 
 Detect space invaders in a radar sample.
 
 The last positional argument is the radar file.
-All preceding positional arguments are invader pattern files (at least one required).")
+All preceding positional arguments are invader pattern files (at least one).
+Shell globs work: bb run resources/invader_*.txt resources/radar_sample.txt
+
+Examples:
+  bb run resources/invader_*.txt resources/radar_sample.txt
+  bb run -f color resources/invader_*.txt resources/radar_sample.txt
+  bb run -f edn -t 0.75 resources/invader_*.txt resources/radar_sample.txt")
 
 (defn- usage
   "Builds the full usage/help string."

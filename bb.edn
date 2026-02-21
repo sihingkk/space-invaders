@@ -1,0 +1,10 @@
+{:tasks
+ {test {:doc  "Run all tests"
+        :task (shell "clojure -M:test")}
+  lint {:doc  "Lint with clj-kondo"
+        :task (shell "clojure -M:lint")}
+  run  {:doc            "Run the app — pass flags and files as args, e.g.: bb run resources/invader_*.txt resources/radar_sample.txt"
+        :override-builtin true
+        :task           (apply shell "clojure -M:run" *command-line-args*)}
+  ci   {:doc  "Lint, then run all tests"
+        :task (do (run 'lint) (run 'test))}}}
